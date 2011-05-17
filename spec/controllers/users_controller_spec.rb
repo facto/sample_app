@@ -50,6 +50,21 @@ describe UsersController do
         response.should have_selector("a", :href => "/users?page=2",
                                            :content => "Next")
       end
+      
+      describe "who are admin users" do
+        it "should display delete links" do
+          @user.toggle!(:admin)
+          get :index
+          response.should have_selector("a", :content => "delete")
+        end
+      end
+      
+      describe "who are non-admin users" do
+        it "should not display delete links" do
+          get :index
+          response.should_not have_selector("a", :content => "delete")
+        end
+      end
     end
   end
   
@@ -85,6 +100,15 @@ describe UsersController do
   end
 
   describe "GET 'new'" do
+    describe "as a signed-in user" do
+      it "should deny access" do
+        user = Factory(:user)
+        test_sign_in(user)
+        get 'new'
+        response.should redirect_to(root_path)
+      end
+    end
+    
     it "should be successful" do
       get 'new'
       response.should be_success
@@ -117,6 +141,15 @@ describe UsersController do
   end
   
   describe "POST 'create'" do
+    describe "as a signed-in user" do
+      it "should deny access" do
+        user = Factory(:user)
+        test_sign_in(user)
+        get 'new'
+        response.should redirect_to(root_path)
+      end
+    end
+    
     describe "failure" do
       before(:each) do
         @attr = { :name => "", :email => "", :password => "",
@@ -298,8 +331,14 @@ describe UsersController do
 
     describe "as an admin user" do
       before(:each) do
-        admin = Factory(:user, :email => "admin@example.com", :admin => true)
-        test_sign_in(admin)
+        @admin = Factory(:user, :email => "admin@example.com", :admin => true)
+        test_sign_in(@admin)
+      end
+      
+      it "should not allow self-destruction" do
+        lambda do
+          delete :destroy, :id => @admin
+        end.should_not change(User, :count).by(-1)
       end
 
       it "should destroy the user" do
